@@ -1,0 +1,25 @@
+{
+  "name": "myBundler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "devDependencies": {
+    "@babel/core": "^7.5.5",
+    "@babel/parser": "^7.5.5",
+    "@babel/preset-env": "^7.5.5",
+    "@babel/traverse": "^7.5.5",
+    "babel-minify": "^0.5.0",
+    "cheerio": "^1.0.0-rc.3",
+    "clean-css": "^4.2.1",
+    "crypto": "^1.0.1",
+    "html-minifier": "^4.0.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "debug-bundler": "node --inspect --inspect-brk myBundler.js |highlight",
+    "bundler-p":"node myBundler production",
+    "bundler-d":"node myBundler development"
+  },
+  "author": "",
+  "license": "ISC"
+}
