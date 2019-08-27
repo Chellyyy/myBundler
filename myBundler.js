@@ -41,7 +41,7 @@ const handleProject = (inputPath, outputPath) => {
         console.log(htmlArray[j], '->', htmlAnalyseScript(htmlArray[j], jsDependencies, cssDependencies, outputPath));
     }
     let outInfo =
-        "#packageTime:" + getDate();
+        "#bundle time:" + getDate();
     fs.writeFileSync(outputPath+'/README.md', outInfo);
 };
 const getDate = () => {
@@ -76,7 +76,6 @@ const readRegDirSync = (filePath, reg, pathArray) => {
             return pathArray.concat(readRegDirSync(path.join(filePath, ele), reg, pathArray));
         } else {
             let newPath = path.join(filePath, ele);
-            // reg.compile(reg);
             if (reg.test(ele)) {
                 pathArray.push(newPath);
             }
@@ -105,7 +104,6 @@ const htmlAnalyseScript = (filePath, scriptDependencies, cssDependencies, dirPat
             let scriptIndex = scriptKey.indexOf(scriptPath);
             if (scriptIndex > -1) {
                 $(getScript[i]).attr('src', prePath + scriptDependencies[scriptPath])
-                // $(getScript[i]).attr('src', scriptDependencies[scriptPath])
             }
         }
     }
@@ -119,7 +117,6 @@ const htmlAnalyseScript = (filePath, scriptDependencies, cssDependencies, dirPat
             let cssIndex = cssKey.indexOf(cssPath);
             if (cssIndex > -1) {
                 $(getCSS[i]).attr('href', prePath + cssDependencies[cssPath])
-                // $(getScript[i]).attr('src', scriptDependencies[scriptPath])
             }
         }
     }
@@ -187,7 +184,6 @@ const fileAnalyser = (filePath, dirPath, fileType) => {
  * @returns {boolean}
  */
 const mkdirsSync = (dirname) => {
-    //console.log(dirname);
     if (fs.existsSync(dirname)) {
         return true;
     } else {
@@ -216,5 +212,7 @@ const deleteAll = (path) => {
         fs.rmdirSync(path);
     }
 };
-mode = global.process.argv[2];
+if(global.process.argv[2]){
+    mode = global.process.argv[2];
+}
 handleProject('./my_source', './my_');
