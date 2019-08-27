@@ -1,8 +1,7 @@
 # myBundler
 
-> A study project
+> Just a bundler
 
-> Use vue-cli to init project
 
 
 ## Build Setup
@@ -14,9 +13,6 @@
 # install dependencies
 
 npm install
-
-
-
 
 # build for production
 npm run bundler-p
