@@ -1,5 +1,9 @@
 /**
  * Create by Chelly
+ * 2020/4/21
+ */
+/**
+ * Create by Chelly
  * 2019/8/27
  */
 
@@ -11,6 +15,8 @@ const babelMinify = require("babel-minify");
 const CleanCSS = require('clean-css');
 const cheerio = require('cheerio');
 const crypto = require('crypto');
+const ignoreArray = ['.ide', '.svn'];
+const copyArray = ['layui', 'qrcode', "jquery-3.3.1.js"];
 let mode = 'development';
 const handleProject = (inputPath, outputPath) => {
     outputPath = outputPath + mode;
@@ -21,28 +27,54 @@ const handleProject = (inputPath, outputPath) => {
     } else {
         fs.mkdir(outputPath, mkdirErr)
     }
-    const cssArray = readRegDirSync(inputPath, /\.css$/);
-    const cssDependencies = {};
-    for (let i = 0; i < cssArray.length; i++) {
-        let cssPath = fileAnalyser(cssArray[i], outputPath, 'css');
-        cssDependencies[path.parse(cssArray[i]).base] = path.parse(cssPath).base;
-        console.log(cssArray[i], '->', cssPath);
+    const pathObj = readAllDirSync(inputPath, ignoreArray, copyArray);
+    const dependencies = {};
+    for(let i in pathObj["ignore"]){
+        let oldPath = pathObj["ignore"][i];
+        let filename = path.join(outputPath, oldPath.slice(oldPath.indexOf("\\")));
+        if (mkdirsSync(path.parse(filename).dir)) {
+            fs.copyFileSync(oldPath, filename);
+            console.log(oldPath, '->', filename)
+        }
     }
-    const jsArray = readRegDirSync(inputPath, /\.js$/);
-    const jsDependencies = {};
-    for (let i = 0; i < jsArray.length; i++) {
-        let scriptPath = fileAnalyser(jsArray[i], outputPath, 'script');
-        jsDependencies[path.parse(jsArray[i]).base] = path.parse(scriptPath).base;
-        console.log(jsArray[i], '->', scriptPath);
-    }
-    let htmlArray = readRegDirSync(inputPath, /\.html|\.htm/);
-    for (let j = 0; j < htmlArray.length; j++) {
-        debugger;
-        console.log(htmlArray[j], '->', htmlAnalyseScript(htmlArray[j], jsDependencies, cssDependencies, outputPath));
+    handleDependencies(pathObj, dependencies, outputPath, 'js');
+    handleDependencies(pathObj, dependencies, outputPath, 'css');
+    for (let item in pathObj) {
+        if (!(/js$|css$|ignore$/.test(item))) {
+            let jsArray = pathObj[item];
+            if (/html|htm/.test(item)) {
+                for (let i in jsArray) {
+                    console.log(jsArray[i], '->', htmlAnalyseScript(jsArray[i], dependencies, outputPath));
+                }
+            } else {
+                for (let i in jsArray) {
+                    let filePath = jsArray[i];
+                    let dir = path.parse(filePath).dir;
+                    let sourceDir = dir.slice(dir.indexOf("\\") > -1 ? dir.indexOf("\\") + 1 : dir.length);
+                    let fileDir = path.join(outputPath, sourceDir);
+                    let filename = path.join(fileDir, path.parse(filePath).base);
+                    if (mkdirsSync(fileDir)) {
+                        fs.copyFile(filePath, filename, () => {
+                            console.log(filePath, '->', filename)
+                    })
+                    }
+                }
+            }
+        }
     }
     let outInfo =
         "#bundle time:" + getDate();
-    fs.writeFileSync(outputPath+'/README.md', outInfo);
+    fs.writeFileSync(outputPath + '/README.md', outInfo);
+}
+;
+const handleDependencies = function (pathObj, dependencies, outputPath, type) {
+    let jsArray = pathObj[type];
+    for (let i in jsArray) {
+        let scriptPath = fileAnalyser(jsArray[i], outputPath, type);
+        dependencies[type] ? "" : dependencies[type] = {};
+        dependencies[type][path.parse(jsArray[i]).base] = path.parse(scriptPath).base;
+        console.log(jsArray[i], '->', scriptPath);
+    }
 };
 const getDate = () => {
     let time = new Date(),
@@ -54,47 +86,74 @@ const getDate = () => {
         s = time.getSeconds();
     return y + "-" + (m < 10 ? "0" + m : m) + "-" + (d < 10 ? "0" + d : d) + " "
         + (h < 10 ? "0" + h : h) + ":" + (mm < 10 ? "0" + mm : mm) + ":" + (s < 10 ? "0" + s : s)
-};
+}
+;
 const mkdirErr = (err) => {
     console.error(err)
-};
+}
+;
 /**
  * 循环读取相应目录下的文件
  * @param filePath
- * @param reg
- * @param pathArray
+ * @param ignoreArray
+ * @paran copyArray
+ * @param pathObj
  * @returns {*}
  */
-const readRegDirSync = (filePath, reg, pathArray) => {
-    const pa = fs.readdirSync(filePath);
-    if (!pathArray) {
-        pathArray = [];
-    }
-    pa.forEach(function (ele) {
-        let info = fs.statSync(path.join(filePath, ele));
-        if (info.isDirectory()) {
-            return pathArray.concat(readRegDirSync(path.join(filePath, ele), reg, pathArray));
-        } else {
-            let newPath = path.join(filePath, ele);
-            if (reg.test(ele)) {
-                pathArray.push(newPath);
+const readAllDirSync = (filePath, ignoreArray, copyArray, pathObj) => {
+    pathObj = pathObj || {};
+    const ignore = ignoreArray;
+    let ig = false;
+    ignore.forEach(item => {
+        filePath.indexOf(item)>-1 ? ig = true : "";
+});
+    if(!ig){
+        const files = fs.readdirSync(filePath);
+        files.forEach(function (ele) {
+            let info = fs.statSync(path.join(filePath, ele));
+            if (info.isDirectory()) {
+                return Object.assign(pathObj, readAllDirSync(path.join(filePath, ele), ignoreArray, copyArray, pathObj));
+            } else {
+                let newPath = path.join(filePath, ele);
+                let ig = false;
+                ignore.forEach(item => {
+                    newPath.indexOf(item)>-1 ? ig = true : "";
+            });
+                if (!ig) {
+                    let cp = false;
+                    copyArray.forEach(item => {
+                        newPath.indexOf(item)>-1 ? cp = true : "";
+                });
+                    let ext;
+                    if(cp){
+                        ext = "ignore"
+                    }else{
+                        ext = ele.slice(ele.lastIndexOf(".") + 1);
+                    }
+                    pathObj[ext] = pathObj[ext] || [];
+                    pathObj[ext].push(newPath);
+                }
             }
-        }
-    });
-    return pathArray
+
+
+        });
+    }
+
+    return pathObj
 };
 /**
  * 修改html文件中的链接地址
  * @param filePath
- * @param scriptDependencies
- * @param cssDependencies
+ * @param dependencies
  * @param dirPath
  * @returns {string}
  */
-const htmlAnalyseScript = (filePath, scriptDependencies, cssDependencies, dirPath) => {
+const htmlAnalyseScript = (filePath, dependencies, dirPath) => {
     const content = fs.readFileSync(filePath, 'utf-8');
     const $ = cheerio.load(content);
     const getScript = $('script');
+    const scriptDependencies = dependencies['js'];
+    const cssDependencies = dependencies['css'];
     for (let i = 0; i < getScript.length; i++) {
         if (getScript[i].attribs.src) {
             let pathIndex = getScript[i].attribs.src.lastIndexOf("/") + 1;
@@ -104,6 +163,7 @@ const htmlAnalyseScript = (filePath, scriptDependencies, cssDependencies, dirPat
             let scriptIndex = scriptKey.indexOf(scriptPath);
             if (scriptIndex > -1) {
                 $(getScript[i]).attr('src', prePath + scriptDependencies[scriptPath])
+                // $(getScript[i]).attr('src', scriptDependencies[scriptPath])
             }
         }
     }
@@ -117,6 +177,7 @@ const htmlAnalyseScript = (filePath, scriptDependencies, cssDependencies, dirPat
             let cssIndex = cssKey.indexOf(cssPath);
             if (cssIndex > -1) {
                 $(getCSS[i]).attr('href', prePath + cssDependencies[cssPath])
+                // $(getScript[i]).attr('src', scriptDependencies[scriptPath])
             }
         }
     }
@@ -147,7 +208,7 @@ const getScript = (filename) => {
 const fileAnalyser = (filePath, dirPath, fileType) => {
     let fileContent = getScript(filePath);
     let writeCode;
-    if (fileType === 'script') {
+    if (fileType === 'js') {
         fileContent = babel.transformSync(fileContent, {
             presets: ["@babel/preset-env"]
         }).code;
@@ -170,14 +231,15 @@ const fileAnalyser = (filePath, dirPath, fileType) => {
     }
     let dir = path.parse(filePath).dir;
     let sourceDir = dir.slice(dir.indexOf("\\") + 1);
-    let nowName = path.parse(filePath).name + '.' + crypto.createHash('md5').update(writeCode).digest('hex') + (fileType === 'script' ? '.js' : '.css');
+    let nowName = path.parse(filePath).name + '.' + crypto.createHash('md5').update(writeCode).digest('hex') + (fileType === 'js' ? '.js' : '.css');
     let fileDir = path.join(dirPath, sourceDir);
     let filename = path.join(fileDir, nowName);
     if (mkdirsSync(fileDir)) {
         fs.writeFileSync(filename, writeCode);
         return filename
     }
-};
+}
+;
 /**
  * 循环创建目录
  * @param dirname
@@ -192,7 +254,8 @@ const mkdirsSync = (dirname) => {
             return true;
         }
     }
-};
+}
+;
 /**
  * 循环删除目录及文件
  * @param path
@@ -212,7 +275,37 @@ const deleteAll = (path) => {
         fs.rmdirSync(path);
     }
 };
-if(global.process.argv[2]){
+/**
+ * 循环拷贝目录及文件
+ * @param path
+ */
+const copyAll = (inputPath, outputPath) => {
+    if (fs.statSync(inputPath).isDirectory()) {
+        let files = [];
+        if (fs.existsSync(inputPath)) {
+            files = fs.readdirSync(inputPath);
+            files.forEach(function (file) {
+                let curPath = path.join(inputPath, file);
+                if (fs.statSync(curPath).isDirectory()) { // recurse
+                    copyAll(curPath, outputPath);
+                } else {
+                    let filename = path.join(outputPath, curPath.slice(curPath.indexOf("\\")));
+                    if (mkdirsSync(path.parse(filename).dir)) {
+                        fs.copyFileSync(curPath, filename);
+                        console.log(curPath, '->', filename)
+                    }
+                }
+            });
+        }
+    } else {
+        let filename = path.join(outputPath, inputPath.slice(inputPath.indexOf("\\")));
+        if (mkdirsSync(path.parse(filename).dir)) {
+            fs.copyFileSync(inputPath, filename);
+            console.log(inputPath, '->', filename)
+        }
+    }
+};
+if (global.process.argv[2]) {
     mode = global.process.argv[2];
 }
 handleProject('./my_source', './my_');
