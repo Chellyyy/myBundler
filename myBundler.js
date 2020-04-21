@@ -2,10 +2,6 @@
  * Create by Chelly
  * 2020/4/21
  */
-/**
- * Create by Chelly
- * 2019/8/27
- */
 
 const fs = require('fs');
 const path = require('path');
@@ -15,9 +11,11 @@ const babelMinify = require("babel-minify");
 const CleanCSS = require('clean-css');
 const cheerio = require('cheerio');
 const crypto = require('crypto');
-const ignoreArray = ['.ide', '.svn'];
-const copyArray = ['layui', 'qrcode', "jquery-3.3.1.js"];
-let mode = 'development';
+//ignore数组不读取，copy数组会读取但不做操作仅拷贝
+const ignoreArray = ['dirname'];
+const copyArray = ['dir', "filename"];
+let mode = 'development'
+
 const handleProject = (inputPath, outputPath) => {
     outputPath = outputPath + mode;
     debugger;
@@ -65,8 +63,14 @@ const handleProject = (inputPath, outputPath) => {
     let outInfo =
         "#bundle time:" + getDate();
     fs.writeFileSync(outputPath + '/README.md', outInfo);
-}
-;
+};
+/**
+ * 根据不同文件类型处理文件
+ * @param pathObj
+ * @param dependencies
+ * @param outputPath
+ * @param type
+ */
 const handleDependencies = function (pathObj, dependencies, outputPath, type) {
     let jsArray = pathObj[type];
     for (let i in jsArray) {
