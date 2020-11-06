@@ -29,26 +29,26 @@ const handleProject = (inputPath, outputPath) => {
     const dependencies = {};
     for(let i in pathObj["ignore"]){
         let oldPath = pathObj["ignore"][i];
-        let filename = path.join(outputPath, oldPath.slice(oldPath.indexOf("\\")));
+        let filename = path.join(outputPath, oldPath.slice(inputPath.length+1));
         if (mkdirsSync(path.parse(filename).dir)) {
             fs.copyFileSync(oldPath, filename);
             console.log(oldPath, '->', filename)
         }
     }
-    handleDependencies(pathObj, dependencies, outputPath, 'js');
-    handleDependencies(pathObj, dependencies, outputPath, 'css');
+    handleDependencies(pathObj, dependencies, outputPath, 'js', inputPath);
+    handleDependencies(pathObj, dependencies, outputPath, 'css', inputPath);
     for (let item in pathObj) {
         if (!(/js$|css$|ignore$/.test(item))) {
             let jsArray = pathObj[item];
             if (/html|htm/.test(item)) {
                 for (let i in jsArray) {
-                    console.log(jsArray[i], '->', htmlAnalyseScript(jsArray[i], dependencies, outputPath));
+                    console.log(jsArray[i], '->', htmlAnalyseScript(jsArray[i], dependencies, outputPath, inputPath));
                 }
             } else {
                 for (let i in jsArray) {
                     let filePath = jsArray[i];
                     let dir = path.parse(filePath).dir;
-                    let sourceDir = dir.slice(dir.indexOf("\\") > -1 ? dir.indexOf("\\") + 1 : dir.length);
+                    let sourceDir = dir.slice(inputPath.length + 1);
                     let fileDir = path.join(outputPath, sourceDir);
                     let filename = path.join(fileDir, path.parse(filePath).base);
                     if (mkdirsSync(fileDir)) {
@@ -70,11 +70,12 @@ const handleProject = (inputPath, outputPath) => {
  * @param dependencies
  * @param outputPath
  * @param type
+ * @param inputPath
  */
-const handleDependencies = function (pathObj, dependencies, outputPath, type) {
+const handleDependencies = function (pathObj, dependencies, outputPath, type, inputPath) {
     let jsArray = pathObj[type];
     for (let i in jsArray) {
-        let scriptPath = fileAnalyser(jsArray[i], outputPath, type);
+        let scriptPath = fileAnalyser(jsArray[i], outputPath, type, inputPath);
         dependencies[type] ? "" : dependencies[type] = {};
         dependencies[type][path.parse(jsArray[i]).base] = path.parse(scriptPath).base;
         console.log(jsArray[i], '->', scriptPath);
@@ -150,9 +151,10 @@ const readAllDirSync = (filePath, ignoreArray, copyArray, pathObj) => {
  * @param filePath
  * @param dependencies
  * @param dirPath
+ * @param inputPath
  * @returns {string}
  */
-const htmlAnalyseScript = (filePath, dependencies, dirPath) => {
+const htmlAnalyseScript = (filePath, dependencies, dirPath, inputPath) => {
     const content = fs.readFileSync(filePath, 'utf-8');
     const $ = cheerio.load(content);
     const getScript = $('script');
@@ -186,7 +188,7 @@ const htmlAnalyseScript = (filePath, dependencies, dirPath) => {
         }
     }
     let dir = path.parse(filePath).dir;
-    let sourceDir = dir.slice(dir.indexOf("\\") > -1 ? dir.indexOf("\\") + 1 : dir.length);
+    let sourceDir = dir.slice(inputPath.length + 1);
     let fileDir = path.join(dirPath, sourceDir);
     let filename = path.join(fileDir, path.parse(filePath).base);
     if (mkdirsSync(fileDir)) {
@@ -207,9 +209,10 @@ const getScript = (filename) => {
  * @param filePath
  * @param dirPath
  * @param fileType
+ * @param inputPath
  * @returns {string}
  */
-const fileAnalyser = (filePath, dirPath, fileType) => {
+const fileAnalyser = (filePath, dirPath, fileType, inputPath) => {
     let fileContent = getScript(filePath);
     let writeCode;
     if (fileType === 'js') {
@@ -234,7 +237,7 @@ const fileAnalyser = (filePath, dirPath, fileType) => {
         }
     }
     let dir = path.parse(filePath).dir;
-    let sourceDir = dir.slice(dir.indexOf("\\") + 1);
+    let sourceDir = dir.slice(inputPath.length + 1);
     let nowName = path.parse(filePath).name + '.' + crypto.createHash('md5').update(writeCode).digest('hex') + (fileType === 'js' ? '.js' : '.css');
     let fileDir = path.join(dirPath, sourceDir);
     let filename = path.join(fileDir, nowName);
